@@ -1,0 +1,4 @@
+.pytest_cache/
+reports/
+tests/__pycache__/
+commiting.txt

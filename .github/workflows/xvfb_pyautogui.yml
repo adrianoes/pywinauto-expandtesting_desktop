@@ -1,0 +1,66 @@
+name: Run PyAutoGUI Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y xvfb x11-utils xauth python3-tk fluxbox xterm
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest pyautogui Faker pytest-html 
+
+      - name: List versions of apt dependencies
+        run: |
+          echo "Versions of apt dependencies:"
+          apt list --installed xvfb x11-utils xauth python3-tk fluxbox xterm
+
+      - name: List versions of pip dependencies
+        run: |
+          echo "Versions of pip dependencies:"
+          pip show pytest pyautogui Faker pytest-html
+
+      - name: Set up graphical environment
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1920x1080x24 &  # Start Xvfb with the virtual screen
+          sleep 3
+
+          touch ~/.Xauthority
+          xauth generate :99 . trusted
+          export XAUTHORITY=$HOME/.Xauthority
+
+          # Use fluxbox to manage the window
+          fluxbox -display :99 &  # Start fluxbox with specific display
+          sleep 3  # Wait for fluxbox to load
+
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      - name: Run Pytest (executes the test that opens the terminal)
+        run: |
+          export DISPLAY=:99
+          pytest ./tests/ -v --html=./reports/report.html --self-contained-html 
+        shell: /usr/bin/bash -e {0}
+
+      - name: Upload test report
+        if: always()  # Ensures the upload happens regardless of test success
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: reports/report.html
+
+      
