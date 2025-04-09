@@ -1,6 +1,6 @@
 # pywinauto-expandtesting_DESKTOP
 
-Desktop testing in [expandtesting](https://practice.expandtesting.com/notes/api/api-docs/) API documentation through pywinauto. This project contains basic examples on how to use pywinauto and Git Bash to send curl commands. Good practices such as hooks, custom commands and tags, among others, are used. All the necessary support documentation to develop this project is placed here. 
+Desktop testing in [expandtesting](https://practice.expandtesting.com/notes/api/api-docs/) API documentation through pywinauto. This project contains basic examples on how to use pywinauto and Cmder to send curl commands. Good practices such as hooks, custom commands and tags, among others, are used. All the necessary support documentation to develop this project is placed here. 
 
 # Pre-requirements:
 

@@ -1,0 +1,44 @@
+name: Run PyWinAuto Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pytest pywinauto Faker pytest-html 
+
+      - name: List versions of pip dependencies
+        run: |
+          echo "Versions of pip dependencies:"
+          pip show pytest pywinauto Faker pytest-html
+
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      - name: Run Pytest (executes the test that opens the terminal)
+        run: |
+          pytest ./tests/ -v --html=./reports/report.html --self-contained-html 
+        shell: /usr/bin/bash -e {0}
+
+      - name: Upload test report
+        if: always()  # Ensures the upload happens regardless of test success
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: reports/report.html
+
+      

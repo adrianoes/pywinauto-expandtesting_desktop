@@ -1,0 +1,1 @@
+curl -X "GET" "https://practice.expandtesting.com/notes/api/health-check" -H "accept: application/json"

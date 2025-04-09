@@ -1,4 +1,6 @@
 |CTAG_1744229462_85999015_7464_0
 curl -X 'GET' 'https://practice.expandtesting.com/notes/api/health-check' -H 'accept: application/json'
-curl -X "GET" "https://practice.expandtesting.com/notes/api/health-check" -H "accept: application/json"
+|url -X "GET" "https://practice.expandtesting.com/notes/api/health-check" -H "accept: application/json"
 clink set clink.autoupdate off
+|url -X "GET" "https://practice.expandtesting.com/notes/api/health-check" -H "accept: application/json"
+curl -X "GET" "https://practice.expandtesting.com/notes/api/health-check" -H "accept: application/json"
