@@ -3,4 +3,5 @@ curl -X 'GET' 'https://practice.expandtesting.com/notes/api/health-check' -H 'ac
 |url -X "GET" "https://practice.expandtesting.com/notes/api/health-check" -H "accept: application/json"
 clink set clink.autoupdate off
 |url -X "GET" "https://practice.expandtesting.com/notes/api/health-check" -H "accept: application/json"
+|url -X "GET" "https://practice.expandtesting.com/notes/api/health-check" -H "accept: application/json"
 curl -X "GET" "https://practice.expandtesting.com/notes/api/health-check" -H "accept: application/json"

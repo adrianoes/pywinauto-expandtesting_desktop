@@ -5,7 +5,7 @@ import psutil
 
 def test_health_curl():
 
-    cmder_path = r'C:\pywinauto-expandtesting_desktop\Cmder.exe'
+    cmder_path = r'Cmder.exe'
 
     # Inicia o Cmder
     app = Application().start(cmder_path, create_new_console=True, wait_for_idle=False)
