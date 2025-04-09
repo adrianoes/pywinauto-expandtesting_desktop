@@ -10,7 +10,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest 
 
     steps:
       - name: Checkout the code
@@ -18,8 +18,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pytest pywinauto Faker pytest-html 
+          python -m pip install --upgrade pip
+          python -m pip install pytest pywinauto Faker pytest-html
 
       - name: List versions of pip dependencies
         run: |
@@ -27,18 +27,15 @@ jobs:
           pip show pytest pywinauto Faker pytest-html
 
       - name: Create reports directory
-        run: mkdir -p reports
+        run: mkdir reports
 
       - name: Run Pytest (executes the test that opens the terminal)
         run: |
-          pytest ./tests/ -v --html=./reports/report.html --self-contained-html 
-        shell: /usr/bin/bash -e {0}
+          pytest ./tests/ -v --html=./reports/report.html --self-contained-html
 
       - name: Upload test report
-        if: always()  # Ensures the upload happens regardless of test success
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-report
           path: reports/report.html
-
-      
