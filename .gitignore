@@ -3,3 +3,8 @@ reports/
 tests/__pycache__/
 commiting.txt
 config/clink.log
+config/profile.d
+
+# Ignore Clink history and errorlevel files
+config/clink_history_*.local
+config/clink_errorlevel_*.txt

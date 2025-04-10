@@ -89,10 +89,6 @@ history.shared = False
 # type: boolean
 match.expand_envvars = True
 
-# name: Save errorlevel from each command
-# type: boolean
-clink.auto_errorlevel = false
-
 # name: The number of history lines to save
 # type: integer
 history.max_lines = 0

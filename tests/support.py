@@ -1,3 +1,4 @@
+import glob
 import pytest
 from pywinauto import Application
 import time
@@ -176,17 +177,40 @@ def write_json_test_data_file(test_data_file, test_data):
 def terminate_cmder_process_tree(app):
     """
     Termina o processo do Cmder e todos os subprocessos associados (como cmd.exe).
+    Além disso, exclui arquivos temporários relacionados ao Clink.
     """
     cmder_pid = app.process
     try:
+        # Termina os processos filhos e o processo principal
         process = psutil.Process(cmder_pid)
         for child in process.children(recursive=True):
             child.terminate()
         process.terminate()
         print("Cmder process and its children have been terminated.")
+        
+        # Limpeza de arquivos temporários relacionados ao Clink
+        config_dir = "config"
+        file_patterns = [
+            "clink_history_*.local",
+            "clink.log",
+            "clink_errorlevel_*.txt"
+        ]
+        
+        # Função para excluir os arquivos
+        def delete_files(pattern):
+            files = glob.glob(os.path.join(config_dir, pattern))
+            for file in files:
+                try:
+                    os.remove(file)
+                    print(f"Arquivo excluído: {file}")
+                except Exception as e:
+                    print(f"Erro ao excluir o arquivo {file}: {e}")
+
+        # Excluir os arquivos com os padrões definidos
+        for pattern in file_patterns:
+            delete_files(pattern)
+        
     except psutil.NoSuchProcess:
         print(f"No such process with PID: {cmder_pid}")
     except Exception as e:
         print(f"Error terminating process tree: {e}")
-
-
