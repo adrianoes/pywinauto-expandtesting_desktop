@@ -5,41 +5,40 @@ import psutil
 import json
 import os
 from faker import Faker
-# from .support import 
+from tests.support import create_user, delete_json_output_file, delete_json_test_data_file, delete_user, login_user, terminate_cmder_process_tree, write_json_test_data_file
 
-def test_create_user():
+
+def test_crete_user():
+    #start random data number
     randomData = Faker().hexify(text='^^^^^^^^^^^^')
-    cmder_path = r'Cmder.exe'
+
+    # Start Cmder
+    cmder_path = r'Cmder.exe'        
+    app = Application().start(cmder_path, create_new_console=True, wait_for_idle=False)
+    time.sleep(10)
+        # Find the process ID of ConEmu
+    def find_conemu_pid():
+        for proc in psutil.process_iter(['pid', 'name']):
+            if proc.info['name'] == 'ConEmu64.exe':
+                return proc.info['pid']
+        return None
+    pid = find_conemu_pid()
+    app = Application().connect(process=pid)
+    time.sleep(2)
+    terminal_window = app.window(title_re=".*Cmder.*")
+    terminal_window.wait('visible', timeout=15)
+    terminal_window.maximize()
+
+    #define paths
     output_dir = os.path.join(os.path.dirname(__file__), '..', 'resources')
     output_file = os.path.abspath(os.path.join(output_dir, f'output-{randomData}.json'))
     test_data_file = os.path.abspath(os.path.join(output_dir, f'test_data-{randomData}.json'))
-
-    # Ensure the 'resources' folder exists
     os.makedirs(output_dir, exist_ok=True)
 
     # Generate random user data using Faker
     user_name = Faker().name()
     user_email = Faker().lexify(text='??').lower() + Faker().company_email().replace("-", "")
     user_password = Faker().password(length=12, special_chars=False, digits=True, upper_case=True, lower_case=True)
-
-    # Start Cmder
-    app = Application().start(cmder_path, create_new_console=True, wait_for_idle=False)
-    time.sleep(10)
-
-    # Find the process ID of ConEmu
-    def find_conemu_pid():
-        for proc in psutil.process_iter(['pid', 'name']):
-            if proc.info['name'] == 'ConEmu64.exe':
-                return proc.info['pid']
-        return None
-
-    pid = find_conemu_pid()
-    app = Application().connect(process=pid)
-    time.sleep(2)
-
-    terminal_window = app.window(title_re=".*Cmder.*")
-    terminal_window.wait('visible', timeout=15)
-    terminal_window.maximize()
 
     # cURL command to create a new user and save the response in the 'resources' folder
     curl_command = f'curl -X "POST" "https://practice.expandtesting.com/notes/api/users/register" ' \
@@ -54,7 +53,6 @@ def test_create_user():
 
     with open(output_file, "r") as f:
         response_text = f.read().strip()
-
     try:
         response_json = json.loads(response_text)
     except json.JSONDecodeError as e:
@@ -82,14 +80,43 @@ def test_create_user():
         "user_id": user_id
     }
 
-    # Remove the JSON file after the test
-    if os.path.exists(output_file):
-        os.remove(output_file)
-        print(f"Removed the JSON file: {output_file}")    
+    write_json_test_data_file(test_data_file, test_data)
+    delete_json_output_file(output_file) 
 
-    with open(test_data_file, "w") as f:
-        json.dump(test_data, f, indent=4)
-    print(f"Test data saved in {test_data_file}")
+    login_user(randomData, test_data_file, output_dir, terminal_window)
+    delete_user(randomData, test_data_file, output_dir, terminal_window)
+
+    terminate_cmder_process_tree(app)
+
+   
+def test_login_user():
+    #start random data number
+    randomData = Faker().hexify(text='^^^^^^^^^^^^')
+
+    # Start Cmder
+    cmder_path = r'Cmder.exe'        
+    app = Application().start(cmder_path, create_new_console=True, wait_for_idle=False)
+    time.sleep(10)
+        # Find the process ID of ConEmu
+    def find_conemu_pid():
+        for proc in psutil.process_iter(['pid', 'name']):
+            if proc.info['name'] == 'ConEmu64.exe':
+                return proc.info['pid']
+        return None
+    pid = find_conemu_pid()
+    app = Application().connect(process=pid)
+    time.sleep(2)
+    terminal_window = app.window(title_re=".*Cmder.*")
+    terminal_window.wait('visible', timeout=15)
+    terminal_window.maximize()
+
+    #define paths
+    output_dir = os.path.join(os.path.dirname(__file__), '..', 'resources')
+    output_file = os.path.abspath(os.path.join(output_dir, f'output-{randomData}.json'))
+    test_data_file = os.path.abspath(os.path.join(output_dir, f'test_data-{randomData}.json'))
+    os.makedirs(output_dir, exist_ok=True)
+
+    create_user(terminal_window, output_file, test_data_file)
 
     with open(test_data_file, "r") as f:
         test_data = json.load(f)
@@ -99,7 +126,6 @@ def test_create_user():
     user_email = test_data.get("user_email")
     user_password = test_data.get("user_password")  # We read user_password even if not used yet
     user_id = test_data.get("user_id")  # Read user_id from the JSON file
-    user_token = test_data.get("user_token")  # Read user_token from the JSON file
 
     # cURL command to login the user and save the response in the 'resources' folder
     output_file = os.path.abspath(os.path.join(output_dir, f'output{randomData}.json'))
@@ -135,25 +161,52 @@ def test_create_user():
     assert login_success is True, "The 'success' field is not True for login."
     assert login_status == 200, f"Expected status 200 for login, but received: {login_status}"
     assert login_message == "Login successful", f"Unexpected message for login: {login_message}"
-    assert user_name == response_json.get("data", {}).get("name"), "User name mismatch for account deletion."
+    assert user_name == login_response_json.get("data", {}).get("name"), "User name mismatch for account deletion."
     assert user_email == login_response_json.get("data", {}).get("email"), "User email mismatch for login."
     assert user_token_from_response is not None, "Token should not be None after login."
     assert user_id == login_user_id, f"User ID mismatch: expected {user_id}, but got {login_user_id}"
-
-    # Remove the login output JSON file after the test
-    if os.path.exists(output_file):
-        os.remove(output_file)
-        print(f"Removed the login output file: {output_file}")
 
     # Update the test data with the token and user_id (just in case we need them later)
     test_data.update({
         "user_token": user_token_from_response
     })
 
-    # Save the updated test data in the JSON file
-    with open(test_data_file, "w") as f:
-        json.dump(test_data, f, indent=4)
-    print(f"Test data updated with token and user_id saved in {test_data_file}")
+    write_json_test_data_file(test_data_file, test_data)
+    delete_json_output_file(output_file)
+
+    delete_user(randomData, test_data_file, output_dir, terminal_window)
+
+    terminate_cmder_process_tree(app)
+
+def test_delete_user():
+    #start random data number
+    randomData = Faker().hexify(text='^^^^^^^^^^^^')
+
+    # Start Cmder
+    cmder_path = r'Cmder.exe'        
+    app = Application().start(cmder_path, create_new_console=True, wait_for_idle=False)
+    time.sleep(10)
+        # Find the process ID of ConEmu
+    def find_conemu_pid():
+        for proc in psutil.process_iter(['pid', 'name']):
+            if proc.info['name'] == 'ConEmu64.exe':
+                return proc.info['pid']
+        return None
+    pid = find_conemu_pid()
+    app = Application().connect(process=pid)
+    time.sleep(2)
+    terminal_window = app.window(title_re=".*Cmder.*")
+    terminal_window.wait('visible', timeout=15)
+    terminal_window.maximize()
+
+    #define paths
+    output_dir = os.path.join(os.path.dirname(__file__), '..', 'resources')
+    output_file = os.path.abspath(os.path.join(output_dir, f'output-{randomData}.json'))
+    test_data_file = os.path.abspath(os.path.join(output_dir, f'test_data-{randomData}.json'))
+    os.makedirs(output_dir, exist_ok=True)
+
+    create_user(terminal_window, output_file, test_data_file)    
+    login_user(randomData, test_data_file, output_dir, terminal_window)
 
     # Read the user token from the saved JSON file
     with open(test_data_file, "r") as f:
@@ -193,23 +246,10 @@ def test_create_user():
     assert delete_status == 200, f"Expected status 200, but received: {delete_status}"
     assert delete_message == "Account successfully deleted", f"Unexpected message: {delete_message}"
 
-    # Remove the output file after the delete operation
-    if os.path.exists(output_file):
-        os.remove(output_file)
-        print(f"Removed the output file after delete operation: {output_file}")
+    delete_json_test_data_file(test_data_file)
 
-    # Close Cmder by terminating the entire process tree (including cmd.exe subprocesses)
-    def terminate_process_tree(pid):
-        process = psutil.Process(pid)
-        for child in process.children(recursive=True):
-            child.terminate()
-        process.terminate()
+    delete_json_output_file(output_file)
 
-    cmder_pid = app.process
-    terminate_process_tree(cmder_pid)
-    print("Cmder process and its children have been terminated.")
+    terminate_cmder_process_tree(app)
 
-    # Remove the test data JSON file after the test
-    if os.path.exists(test_data_file):
-        os.remove(test_data_file)
-        print(f"Removed the test data file: {test_data_file}")
+   

@@ -1,347 +1,192 @@
+import pytest
+from pywinauto import Application
+import time
+import psutil
 import json
 import os
-import requests
 from faker import Faker
 
 
-def create_user_api(randomData, setup_database):
-    cursor = setup_database.cursor(dictionary=True)
+def create_user(terminal_window, output_file, test_data_file):
+    # Generate random user data using Faker
+    user_name = Faker().name()
+    user_email = Faker().lexify(text='??').lower() + Faker().company_email().replace("-", "")
+    user_password = Faker().password(length=12, special_chars=False, digits=True, upper_case=True, lower_case=True)
+
+    # cURL command to create a new user and save the response in the 'resources' folder
+    curl_command = f'curl -X "POST" "https://practice.expandtesting.com/notes/api/users/register" ' \
+                   f'-H "accept: application/json" -H "Content-Type: application/x-www-form-urlencoded" ' \
+                   f'-d "name={user_name}&email={user_email}&password={user_password}" > "{output_file}"'
+
+    terminal_window.type_keys(curl_command, with_spaces=True)
+    terminal_window.type_keys("{ENTER}")
+    print("cURL command sent successfully!")
+
+    time.sleep(10)
+
+    with open(output_file, "r") as f:
+        response_text = f.read().strip()
+    try:
+        response_json = json.loads(response_text)
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+
+    success = response_json.get("success")
+    status = response_json.get("status")
+    message = response_json.get("message")
+    user_id = response_json.get("data", {}).get("id")
+
+    print(f"Extracted data: success={success}, status={status}, message='{message}', user_id={user_id}")
+
+    # Assertions
+    assert success is True, "The 'success' field is not True."
+    assert status == 201, f"Expected status 201, but received: {status}"
+    assert message == "User account created successfully", f"Unexpected message: {message}"
+    assert user_name == response_json.get("data", {}).get("name"), "User name mismatch"
+    assert user_email == response_json.get("data", {}).get("email"), "User email mismatch"
+
+    # Save the test data in a JSON file
+    test_data = {
+        "user_name": user_name,
+        "user_email": user_email,
+        "user_password": user_password,
+        "user_id": user_id
+    }
+
+    write_json_test_data_file(test_data_file, test_data)
+
+    delete_json_output_file(output_file)
+
+def login_user(randomData, test_data_file, output_dir, terminal_window):
+    with open(test_data_file, "r") as f:
+        test_data = json.load(f)
+
+    # Extract the user data from the test data file
+    user_name = test_data.get("user_name")
+    user_email = test_data.get("user_email")
+    user_password = test_data.get("user_password")  # We read user_password even if not used yet
+    user_id = test_data.get("user_id")  # Read user_id from the JSON file
+
+    # cURL command to login the user and save the response in the 'resources' folder
+    output_file = os.path.abspath(os.path.join(output_dir, f'output{randomData}.json'))
+
+    login_curl_command = f'curl -X "POST" "https://practice.expandtesting.com/notes/api/users/login" ' \
+                        f'-H "accept: application/json" -H "Content-Type: application/x-www-form-urlencoded" ' \
+                        f'-d "email={user_email}&password={user_password}" > "{output_file}"'
+
+    terminal_window.type_keys(login_curl_command, with_spaces=True)
+    terminal_window.type_keys("{ENTER}")
+    print("Login cURL command sent successfully!")
+
+    time.sleep(10)
+
+    with open(output_file, "r") as f:
+        login_response_text = f.read().strip()
+
+    try:
+        login_response_json = json.loads(login_response_text)
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+
+    login_success = login_response_json.get("success")
+    login_status = login_response_json.get("status")
+    login_message = login_response_json.get("message")
+    user_token_from_response = login_response_json.get("data", {}).get("token")
+    login_user_id = login_response_json.get("data", {}).get("id")
+
+    print(f"Login extracted data: success={login_success}, status={login_status}, message='{login_message}', "
+        f"user_id={login_user_id}, token={user_token_from_response}")
+
+    # Assertions
+    assert login_success is True, "The 'success' field is not True for login."
+    assert login_status == 200, f"Expected status 200 for login, but received: {login_status}"
+    assert login_message == "Login successful", f"Unexpected message for login: {login_message}"
+    assert user_name == login_response_json.get("data", {}).get("name"), "User name mismatch for account deletion."
+    assert user_email == login_response_json.get("data", {}).get("email"), "User email mismatch for login."
+    assert user_token_from_response is not None, "Token should not be None after login."
+    assert user_id == login_user_id, f"User ID mismatch: expected {user_id}, but got {login_user_id}"
+
+    # Update the test data with the token and user_id (just in case we need them later)
+    test_data.update({
+        "user_token": user_token_from_response
+    })
+
+    write_json_test_data_file(test_data_file, test_data) 
+
+    delete_json_output_file(output_file)
     
-    # Seleciona um usuário aleatório do banco de dados
-    cursor.execute("SELECT `index`, name, email, password FROM users ORDER BY RAND() LIMIT 1")
-    user = cursor.fetchone()
+def delete_user(randomData, test_data_file, output_dir, terminal_window):
+    with open(test_data_file, "r") as f:
+        test_data = json.load(f)
 
-    user_index = user["index"]
-    user_name = user["name"]
-    user_email = user["email"]
-    user_password = user["password"]
+    user_token = test_data["user_token"]  # Directly getting the user token without checking for existence
 
-    body = {'confirmPassword': user_password, 'email': user_email, 'name': user_name, 'password': user_password}
-    print(body)
-    headers = {'accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded'}
-    resp = requests.post("https://practice.expandtesting.com/notes/api/users/register", headers=headers, data=body)
-    respJS = resp.json()
-    print(respJS)
+    # cURL command to login the user and save the response in the 'resources' folder
+    output_file = os.path.abspath(os.path.join(output_dir, f'output{randomData}.json'))
 
-    user_id = respJS['data']['id']
-
-    # Atualiza o ID do usuário na mesma linha no banco de dados
-    cursor.execute("UPDATE users SET id = %s WHERE `index` = %s", (user_id, user_index))
-    setup_database.commit()
-
-    cursor.execute("SELECT id FROM users WHERE `index` = %s", (user_index,))
-    db_user = cursor.fetchone()
-    cursor.close()
-
-    assert True == respJS['success']
-    assert 201 == respJS['status']
-    assert "User account created successfully" == respJS['message']
-    assert user_email == respJS['data']['email']
-    assert user_name == respJS['data']['name']
-    assert db_user['id'] == user_id #database validation
-
-    # Armazena apenas o índice do usuário escolhido
-    user_index_data = {"user_index": user_index}
-
-    with open(f"./tests/fixtures/file-{randomData}.json", 'w') as json_file:
-        json.dump(user_index_data, json_file, indent=4)
-
-def login_user_api(randomData, setup_database):
-   # Abre o arquivo para obter o index do usuário escolhido aleatoriamente
-    with open(f"./tests/fixtures/file-{randomData}.json", 'r') as json_file:
-        data = json.load(json_file)
-    user_index = data['user_index']
-
-    # Conecta ao banco de dados para buscar os dados do usuário pelo index
-    cursor = setup_database.cursor(dictionary=True)
-    cursor.execute("SELECT id, name, email, password FROM users WHERE `index` = %s", (user_index,))
-    user = cursor.fetchone()
-
-    # Atribui os valores do banco de dados às variáveis
-    user_id = user["id"]
-    user_name = user["name"]
-    user_email = user["email"]
-    user_password = user["password"]
-
-    body = {'email': user_email, 'password': user_password}
-    print(body)
-    headers = {'accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded'}
-    resp = requests.post("https://practice.expandtesting.com/notes/api/users/login", headers=headers, data=body)
-    respJS = resp.json()
-    print(respJS)
-
-    # Obtém o token de usuário
-    user_token = respJS['data']['token']
-
-    # Atualiza o banco de dados com o token obtido
-    cursor.execute("UPDATE users SET token = %s WHERE `index` = %s", (user_token, user_index))
-    setup_database.commit()
-
-    # Consulta o token no banco para validação
-    cursor.execute("SELECT token FROM users WHERE `index` = %s", (user_index,))
-    db_user = cursor.fetchone()
-    cursor.close()
-
-    assert True == respJS['success']
-    assert 200 == respJS['status']
-    assert "Login successful" == respJS['message']
-    assert user_email == respJS['data']['email']
-    assert user_id == respJS['data']['id']
-    assert user_name == respJS['data']['name']
-    assert db_user['token'] == user_token  # database validation
-
-    # Atualiza o objeto com o índice do usuário escolhido
-    user_index_data = {"user_index": user_index}
-
-    # Não precisa mais salvar no arquivo JSON, a informação foi atualizada no banco de dados
-    # Escreve o índice do usuário no arquivo JSON (se necessário)
-    with open(f"./tests/fixtures/file-{randomData}.json", 'w') as json_file:
-        json.dump(user_index_data, json_file, indent=4)
+    # cURL command to delete the user account using the user token
+    delete_account_command = f'curl -X "DELETE" "https://practice.expandtesting.com/notes/api/users/delete-account" -H "accept: application/json" -H "x-auth-token: {user_token}" > "{output_file}"'
     
-def delete_user_api(randomData, setup_database):
-    # Abre o arquivo para obter o index do usuário escolhido aleatoriamente
-    with open(f"./tests/fixtures/file-{randomData}.json", 'r') as json_file:
-        data = json.load(json_file)
-    user_index = data['user_index']
+    # Send the cURL command to the terminal to delete the account
+    terminal_window.type_keys(delete_account_command, with_spaces=True)
+    terminal_window.type_keys("{ENTER}")
+    print("Delete account cURL command sent successfully!")
 
-    # Conecta ao banco de dados para buscar o token do usuário pelo index
-    cursor = setup_database.cursor(dictionary=True)
-    cursor.execute("SELECT token FROM users WHERE `index` = %s", (user_index,))
-    user = cursor.fetchone()
+    time.sleep(10)  # Wait for the response to come back
 
-    # Atribui o valor do token à variável user_token
-    user_token = user["token"]
+    # Read the response from the output file
+    with open(output_file, "r") as f:
+        delete_response_text = f.read().strip()
 
-    headers = {'accept': 'application/json', 'x-auth-token': user_token}
-    resp = requests.delete("https://practice.expandtesting.com/notes/api/users/delete-account", headers=headers)
-    respJS = resp.json()
-    print(respJS)
+    # Parse the response JSON
+    delete_response_json = json.loads(delete_response_text)
 
-    assert True == respJS['success']
-    assert 200 == respJS['status']
-    assert "Account successfully deleted" == respJS['message']
+    # Extract response details
+    delete_success = delete_response_json.get("success")
+    delete_status = delete_response_json.get("status")
+    delete_message = delete_response_json.get("message")
 
-def create_user4Notes_api(randomData, setup_database4Notes):
-    cursor = setup_database4Notes.cursor(dictionary=True)
+    print(f"Delete response data: success={delete_success}, status={delete_status}, message='{delete_message}'")
+
+    # Assertions for account deletion
+    assert delete_success is True, "The 'success' field is not True."
+    assert delete_status == 200, f"Expected status 200, but received: {delete_status}"
+    assert delete_message == "Account successfully deleted", f"Unexpected message: {delete_message}"
+
+    delete_json_test_data_file(test_data_file)
+
+    delete_json_output_file(output_file)
     
-    # Seleciona um usuário aleatório do banco de dados
-    cursor.execute("SELECT `index`, name, email, password FROM notes ORDER BY RAND() LIMIT 1")
-    user = cursor.fetchone()
-
-    user_index = user["index"]
-    user_name = user["name"]
-    user_email = user["email"]
-    user_password = user["password"]
-
-    body = {'confirmPassword': user_password, 'email': user_email, 'name': user_name, 'password': user_password}
-    print(body)
-    headers = {'accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded'}
-    resp = requests.post("https://practice.expandtesting.com/notes/api/users/register", headers=headers, data=body)
-    respJS = resp.json()
-    print(respJS)
-
-    user_email = respJS['data']['email']
-    user_name = respJS['data']['name']
-    user_id = respJS['data']['id']
-
-    # Atualiza o ID do usuário na mesma linha no banco de dados
-    cursor.execute("UPDATE notes SET id = %s WHERE `index` = %s", (user_id, user_index))
-    setup_database4Notes.commit()
-
-    # Consulta novamente o banco para verificar se o ID foi atualizado
-    cursor.execute("SELECT id FROM notes WHERE `index` = %s", (user_index,))
-    db_user = cursor.fetchone()
-    cursor.close()
-
-    # Assertions de validação da resposta da API
-    assert True == respJS['success']
-    assert 201 == respJS['status']
-    assert "User account created successfully" == respJS['message']
-    assert user_email == respJS['data']['email']
-    assert user_name == respJS['data']['name']
-
-    # Assertions com os dados do banco de dados (apenas para o 'id')
-    assert db_user['id'] == user_id
-
-    # Armazena apenas o índice do usuário escolhido
-    user_index_data = {"user_index": user_index}
-
-    with open(f"./tests/fixtures/file-{randomData}.json", 'w') as json_file:
-        json.dump(user_index_data, json_file, indent=4)
-
-def login_user4Notes_api(randomData, setup_database4Notes):
-   # Abre o arquivo para obter o index do usuário escolhido aleatoriamente
-    with open(f"./tests/fixtures/file-{randomData}.json", 'r') as json_file:
-        data = json.load(json_file)
-    user_index = data['user_index']
-
-    # Conecta ao banco de dados para buscar os dados do usuário pelo index
-    cursor = setup_database4Notes.cursor(dictionary=True)
-    cursor.execute("SELECT id, name, email, password FROM notes WHERE `index` = %s", (user_index,))
-    user = cursor.fetchone()
-
-    # Atribui os valores do banco de dados às variáveis
-    user_id = user["id"]
-    user_name = user["name"]
-    user_email = user["email"]
-    user_password = user["password"]
-
-    body = {'email': user_email, 'password': user_password}
-    print(body)
-    headers = {'accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded'}
-    resp = requests.post("https://practice.expandtesting.com/notes/api/users/login", headers=headers, data=body)
-    respJS = resp.json()
-    print(respJS)
-
-    # Obtém o token de usuário
-    user_token = respJS['data']['token']
-
-    # Atualiza o banco de dados com o token obtido
-    cursor.execute("UPDATE notes SET token = %s WHERE `index` = %s", (user_token, user_index))
-    setup_database4Notes.commit()
-
-    # Consulta o banco para verificar se o token foi atualizado
-    cursor.execute("SELECT token FROM notes WHERE `index` = %s", (user_index,))
-    db_user = cursor.fetchone()
-    cursor.close()
-
-    # Assertions da resposta da API
-    assert True == respJS['success']
-    assert 200 == respJS['status']
-    assert "Login successful" == respJS['message']
-    assert user_email == respJS['data']['email']
-    assert user_id == respJS['data']['id']
-    assert user_name == respJS['data']['name']
-
-    # Assertion para validar o token no banco de dados
-    assert db_user['token'] == user_token
-
-    # Atualiza o objeto com o índice do usuário escolhido
-    user_index_data = {"user_index": user_index}
-
-    # Não precisa mais salvar no arquivo JSON, a informação foi atualizada no banco de dados
-    # Escreve o índice do usuário no arquivo JSON (se necessário)
-    with open(f"./tests/fixtures/file-{randomData}.json", 'w') as json_file:
-        json.dump(user_index_data, json_file, indent=4)
+def delete_json_output_file(output_file):
+    if os.path.exists(output_file):
+        os.remove(output_file)
+    print(f"Removed the JSON file: {output_file}")  
     
-def delete_user4Notes_api(randomData, setup_database4Notes):
-    # Abre o arquivo para obter o index do usuário escolhido aleatoriamente
-    with open(f"./tests/fixtures/file-{randomData}.json", 'r') as json_file:
-        data = json.load(json_file)
-    user_index = data['user_index']
+def delete_json_test_data_file(test_data_file):
+    # Remove the test data JSON file after the test
+    if os.path.exists(test_data_file):
+        os.remove(test_data_file)
+        print(f"Removed the test data file: {test_data_file}")
 
-    # Conecta ao banco de dados para buscar o token do usuário pelo index
-    cursor = setup_database4Notes.cursor(dictionary=True)
-    cursor.execute("SELECT token FROM notes WHERE `index` = %s", (user_index,))
-    user = cursor.fetchone()
+def write_json_test_data_file(test_data_file, test_data):
+    with open(test_data_file, "w") as f:
+        json.dump(test_data, f, indent=4)
+    print(f"Test data saved in {test_data_file}")
+  
+def terminate_cmder_process_tree(app):
+    """
+    Termina o processo do Cmder e todos os subprocessos associados (como cmd.exe).
+    """
+    cmder_pid = app.process
+    try:
+        process = psutil.Process(cmder_pid)
+        for child in process.children(recursive=True):
+            child.terminate()
+        process.terminate()
+        print("Cmder process and its children have been terminated.")
+    except psutil.NoSuchProcess:
+        print(f"No such process with PID: {cmder_pid}")
+    except Exception as e:
+        print(f"Error terminating process tree: {e}")
 
-    # Atribui o valor do token à variável user_token
-    user_token = user["token"]
-
-    headers = {'accept': 'application/json', 'x-auth-token': user_token}
-    resp = requests.delete("https://practice.expandtesting.com/notes/api/users/delete-account", headers=headers)
-    respJS = resp.json()
-    print(respJS)
-
-    assert True == respJS['success']
-    assert 200 == respJS['status']
-    assert "Account successfully deleted" == respJS['message']
-
-def delete_note_api(randomData, setup_database4Notes):    
-    # Abre o arquivo para obter o index do usuário escolhido aleatoriamente
-    with open(f"./tests/fixtures/file-{randomData}.json", 'r') as json_file:
-        data = json.load(json_file)
-    user_index = data['user_index']
-
-    # Conecta ao banco de dados para buscar o note_id e o token do usuário pelo index
-    cursor = setup_database4Notes.cursor(dictionary=True)
-    cursor.execute("SELECT noteId, token FROM notes WHERE `index` = %s", (user_index,))
-    user = cursor.fetchone()
-
-    # Atribui os valores do banco de dados às variáveis
-    note_id = user["noteId"]
-    user_token = user["token"]
-
-    # Cabeçalhos da requisição
-    headers = {'accept': 'application/json', 'x-auth-token': user_token}
-    
-    # Envia a requisição para deletar a nota
-    resp = requests.delete(f"https://practice.expandtesting.com/notes/api/notes/{note_id}", headers=headers)
-    respJS = resp.json()
-    
-    # Imprime a resposta e verifica se a operação foi bem-sucedida
-    print(respJS)
-    assert True == respJS['success']
-    assert 200 == respJS['status']
-    assert "Note successfully deleted" == respJS['message']
-
-def create_note_api(randomData, setup_database4Notes):
-    # Abre o arquivo para obter o index do usuário escolhido aleatoriamente
-    with open(f"./tests/fixtures/file-{randomData}.json", 'r') as json_file:
-        data = json.load(json_file)
-    user_index = data['user_index']
-
-    # Conecta ao banco de dados para buscar os dados do usuário e da nota pelo index
-    cursor = setup_database4Notes.cursor(dictionary=True)
-    cursor.execute("SELECT id, token, noteTitle, noteDescription, noteCategory FROM notes WHERE `index` = %s", (user_index,))
-    user_note = cursor.fetchone()
-
-    # Atribui os valores do banco de dados às variáveis
-    user_id = user_note["id"]
-    user_token = user_note["token"]
-    note_title = user_note["noteTitle"]
-    note_description = user_note["noteDescription"]
-    note_category = user_note["noteCategory"]
-
-    body = {'category': note_category, 'description': note_description, 'title': note_title}
-    print(body)
-    headers = {'accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'x-auth-token': user_token}
-    resp = requests.post("https://practice.expandtesting.com/notes/api/notes", headers=headers, data=body)
-    respJS = resp.json()
-    print(respJS)
-
-    note_id = respJS['data']['id']
-    note_created_at = respJS['data']['created_at']
-    note_completed = respJS['data']['completed']
-    note_updated_at = respJS['data']['updated_at']
-
-    # Assertions de validação no banco de dados e API
-    assert True == respJS['success']
-    assert 200 == respJS['status']
-    assert "Note successfully created" == respJS['message']
-    assert note_category == respJS['data']['category']
-    assert note_description == respJS['data']['description']
-    assert note_title == respJS['data']['title']
-    assert user_id == respJS['data']['user_id']
-
-    # Atualiza os dados da nota na linha do usuário correspondente ao user_index
-    cursor = setup_database4Notes.cursor()
-    cursor.execute("""
-        UPDATE notes 
-        SET noteId = %s, noteCompleted = %s, 
-            noteCreatedAt = %s, noteUpdatedAt = %s
-        WHERE `index` = %s
-    """, (note_id, note_completed, note_created_at, note_updated_at, user_index))
-    setup_database4Notes.commit()
-
-    # Consulta novamente para validar os dados salvos
-    cursor = setup_database4Notes.cursor(dictionary=True)
-    cursor.execute("SELECT noteId, noteCompleted, noteCreatedAt, noteUpdatedAt FROM notes WHERE `index` = %s", (user_index,))
-    db_note = cursor.fetchone()
-    cursor.close()
-
-    # Assertions com os dados do banco de dados
-    assert db_note['noteId'] == note_id
-    assert bool(int(db_note['noteCompleted'])) == note_completed
-    assert db_note['noteCreatedAt'] == note_created_at
-    assert db_note['noteUpdatedAt'] == note_updated_at
-
-    # Armazena apenas o índice do usuário escolhido no arquivo JSON
-    user_index_data = {"user_index": user_index}
-    
-    with open(f"./tests/fixtures/file-{randomData}.json", 'w') as json_file:
-        json.dump(user_index_data, json_file, indent=4)
-
-def delete_json_file(randomData):
-    os.remove(f"./tests/fixtures/file-{randomData}.json")
 
