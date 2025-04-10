@@ -31,6 +31,7 @@ and keep all the other preferenced options as they are.
 - See [Cmder | Console Emulator page](https://cmder.app/), donwload the latest Mini version and unzip it in C:\pywinauto-expandtesting_desktop. 
 - Open windows propmpt as admin and execute ```pip install pywinauto``` to install PyAutoGUI.
 - Open windows prompt as admin and execute ```pip install pytest``` to install Pytest.
+- Open windows prompt as admin and execute ```pip install psutil``` to install psutil.
 - Open windows prompt as admin and execute ```pip install Faker``` to install Faker library.
 - Open windows prompt as admin and execute ```pip install pytest-html``` to install pytest-html plugin.
 
@@ -47,6 +48,7 @@ and keep all the other preferenced options as they are.
 - [Windows Desktop Automation Dengan Python PyWinAuto](https://www.youtube.com/playlist?list=PL8q4s70ndvwf3h_3px7s0X-7xGv7zXbwc)
 - [ChatGPT](https://chatgpt.com/)
 - [pytest](https://pypi.org/project/pytest/)
+- [psutil](https://pypi.org/project/psutil/)
 - [Faker](https://pypi.org/project/Faker/)
 - [pytest-html](https://pypi.org/project/pytest-html/)
 - [Reusing output from last command in Bash [duplicate]](https://stackoverflow.com/a/48398357)
