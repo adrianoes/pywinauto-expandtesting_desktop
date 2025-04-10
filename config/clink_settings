@@ -81,10 +81,6 @@ history.expand_mode = not_dquoted
 # type: boolean
 history.ignore_space = True
 
-# name: The number of history lines to save
-# type: integer
-history.max_lines = 25000
-
 # name: Share history between instances
 # type: boolean
 history.shared = False
@@ -92,4 +88,17 @@ history.shared = False
 # name: Expand envvars when completing
 # type: boolean
 match.expand_envvars = True
+
+# name: Save errorlevel from each command
+# type: boolean
+clink.auto_errorlevel = false
+
+# name: The number of history lines to save
+# type: integer
+history.max_lines = 0
+
+# name: Save command history
+# type: boolean
+history.save = false
+
 
