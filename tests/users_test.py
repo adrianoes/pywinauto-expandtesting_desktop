@@ -560,7 +560,7 @@ def test_get_user_unauthorized():
     # Assertions
     assert get_success is False, "The 'success' field is not False."
     assert get_status == 401, f"Expected status 401, but received: {get_status}"
-    assert get_message == "Incorrect email address or password", f"Unexpected message: {get_message}"
+    assert get_message == "Access token is not valid or has expired, you will need to login", f"Unexpected message: {get_message}"
 
     # Cleanup do arquivo de resposta
     delete_json_output_file(output_file)
