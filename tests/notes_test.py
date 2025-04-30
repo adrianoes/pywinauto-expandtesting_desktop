@@ -1498,7 +1498,7 @@ def test_update_note_status_bad_request():
     
     terminate_cmder_process_tree(app)
 
-def test_update_note_status_bad_request():
+def test_update_note_status_unauthorized():
     #start random data number
     randomData = Faker().hexify(text='^^^^^^^^^^^^')
 
