@@ -15,8 +15,6 @@ Desktop testing in [expandtesting](https://practice.expandtesting.com/notes/api/
 | pytest-html                     | 4.1.1                       |                           |
 | Cmder                           | 1.3.25                      |                           |
 
-1.3.25
-
 # Installation:
 
 - See [Visual Studio Code page](https://code.visualstudio.com/) and install the latest VSC stable version. Keep all the prefereced options as they are until you reach the possibility to check the checkboxes below: 
