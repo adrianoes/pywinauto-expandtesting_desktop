@@ -27,7 +27,7 @@ Check then both to add both options in context menu.
 and keep all the other preferenced options as they are.
 - Look for Python in the extensions marketplace and install the one from Microsoft.
 - See [Cmder | Console Emulator page](https://cmder.app/), donwload the latest Mini version and unzip it in C:\pywinauto-expandtesting_desktop. 
-- Open windows propmpt as admin and execute ```pip install pywinauto``` to install PyAutoGUI.
+- Open windows prompt as admin and execute ```pip install pywinauto``` to install PyAutoGUI.
 - Open windows prompt as admin and execute ```pip install pytest``` to install Pytest.
 - Open windows prompt as admin and execute ```pip install psutil``` to install psutil.
 - Open windows prompt as admin and execute ```pip install Faker``` to install Faker library.
